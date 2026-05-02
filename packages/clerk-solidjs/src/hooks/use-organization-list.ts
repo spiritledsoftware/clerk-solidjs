@@ -7,7 +7,7 @@ import type {
   OrganizationMembershipResource,
   OrganizationSuggestionResource,
   UserOrganizationInvitationResource
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import { Accessor, createEffect, createMemo } from 'solid-js';
 import { useClerkInstanceContext } from '../contexts/clerk-instance';
 import { useUserContext } from '../contexts/user';

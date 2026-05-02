@@ -1,6 +1,6 @@
-import clerkJsPackage from '@clerk/clerk-js/package.json' with { type: 'json' };
 import { defineConfig } from 'tsup';
 import * as preset from 'tsup-preset-solid';
+import clerkJsPackage from './node_modules/@clerk/clerk-js/package.json' with { type: 'json' };
 import thisPackage from './package.json' with { type: 'json' };
 
 const CI =

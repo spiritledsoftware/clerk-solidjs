@@ -64,17 +64,15 @@ const clerkJsScriptUrl = (opts: LoadClerkJsScriptOptions) => {
     return clerkJSUrl;
   }
 
-  let scriptHost = '';
-  if (!!proxyUrl && isValidProxyUrl(proxyUrl)) {
-    scriptHost = proxyUrlToAbsoluteURL(proxyUrl).replace(/http(s)?:\/\//, '');
-  } else if (
-    domain &&
-    !isDevOrStagingUrl(parsePublishableKey(publishableKey)?.frontendApi || '')
-  ) {
-    scriptHost = addClerkPrefix(domain);
-  } else {
-    scriptHost = parsePublishableKey(publishableKey)?.frontendApi || '';
-  }
+  const scriptHost =
+    !!proxyUrl && isValidProxyUrl(proxyUrl)
+      ? proxyUrlToAbsoluteURL(proxyUrl).replace(/http(s)?:\/\//, '')
+      : domain &&
+          !isDevOrStagingUrl(
+            parsePublishableKey(publishableKey)?.frontendApi || ''
+          )
+        ? addClerkPrefix(domain)
+        : parsePublishableKey(publishableKey)?.frontendApi || '';
 
   const variant = clerkJSVariant
     ? `${clerkJSVariant.replace(/\.+$/, '')}.`

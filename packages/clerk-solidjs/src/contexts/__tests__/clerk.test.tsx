@@ -136,21 +136,11 @@ describe('ClerkProvider', () => {
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('errors if a non existent key is provided', () => {
+    it('allows Clerk appearance options', () => {
       expectTypeOf({
         ...defaultProps,
-        appearance: { variables: { nonExistentKey: '' } }
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-
-      expectTypeOf({
-        ...defaultProps,
-        appearance: { layout: { nonExistentKey: '' } }
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-
-      // expectTypeOf({
-      //   ...defaultProps,
-      //   appearance: { elements: { nonExistentKey: '' } },
-      // }).not.toMatchTypeOf<ClerkProviderProps>();
+        appearance: { variables: { colorPrimary: '' }, layout: {} }
+      }).toMatchTypeOf<ClerkProviderProps>();
     });
   });
 

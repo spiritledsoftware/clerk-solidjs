@@ -2,7 +2,7 @@ import type {
   CheckAuthorizationWithCustomPermissions,
   GetToken,
   SignOut
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import { createMemo } from 'solid-js';
 import { useAuthContext } from '../contexts/auth';
 import { useIsomorphicClerkContext } from '../contexts/isomorphic-clerk';

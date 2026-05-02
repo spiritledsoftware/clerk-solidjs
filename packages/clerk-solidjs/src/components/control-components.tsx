@@ -3,7 +3,7 @@ import type {
   HandleOAuthCallbackParams,
   OrganizationCustomPermissionKey,
   OrganizationCustomRoleKey
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import {
   createEffect,
   createMemo,
@@ -135,9 +135,7 @@ export const RedirectToSignIn = withClerk(
     const [local, redirectToSignInProps] = splitProps(props, ['clerk']);
 
     const hasActiveSessions = createMemo(
-      () =>
-        local.clerk().client.activeSessions &&
-        local.clerk().client.activeSessions.length > 0
+      () => (local.clerk().client?.signedInSessions.length ?? 0) > 0
     );
 
     createEffect(() => {

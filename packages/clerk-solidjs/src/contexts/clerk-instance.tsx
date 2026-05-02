@@ -1,4 +1,4 @@
-import { LoadedClerk } from '@clerk/types';
+import { LoadedClerk } from '@clerk/shared/types';
 import { Accessor, createContext, JSX, useContext } from 'solid-js';
 
 const ClerkInstanceContext = createContext<Accessor<LoadedClerk>>();

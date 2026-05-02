@@ -1,10 +1,10 @@
-import { deriveState } from '@clerk/shared';
+import { deriveState } from '@clerk/shared/deriveState';
 import type {
   ClientResource,
   InitialState,
   LoadedClerk,
   Resources
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import {
   Accessor,
   createEffect,
