@@ -1,5 +1,11 @@
 # clerk-solidjs
 
+## 2.3.0
+
+### Minor Changes
+
+- 275b27e: Upgrade deps and fix issues from the upgrade
+
 ## 2.2.0
 
 ### Minor Changes
