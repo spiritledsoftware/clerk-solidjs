@@ -1,4 +1,3 @@
-import { logErrorInDevMode } from '@clerk/shared';
 import type {
   CreateOrganizationProps,
   GoogleOneTapProps,
@@ -10,7 +9,8 @@ import type {
   UserButtonProps,
   UserProfileProps,
   Without
-} from '@clerk/types';
+} from '@clerk/shared/types';
+import { logErrorInDevMode } from '@clerk/shared/utils';
 import {
   children,
   Component,

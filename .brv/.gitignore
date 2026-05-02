@@ -1,0 +1,18 @@
+# BEGIN opencode-byterover
+# Dream state and logs
+dream-log/
+dream-state.json
+dream.lock
+
+# Review backups
+review-backups/
+
+# Generated files
+config.json
+_queue_status.json
+.snapshot.json
+_manifest.json
+_index.md
+*.abstract.md
+*.overview.md
+# END opencode-byterover

@@ -1,12 +1,16 @@
 import { VerifyTokenOptions } from '@clerk/backend';
 import {
-  LegacyRedirectProps,
   MultiDomainAndOrProxy,
   SignInFallbackRedirectUrl,
   SignInForceRedirectUrl,
   SignUpFallbackRedirectUrl,
   SignUpForceRedirectUrl
-} from '@clerk/types';
+} from '@clerk/shared/types';
+
+type LegacyRedirectProps = {
+  afterSignInUrl?: string;
+  afterSignUpUrl?: string;
+};
 
 export type LoaderOptions = {
   publishableKey?: string;

@@ -225,8 +225,8 @@ export const usePagesOrInfinite: UsePagesOrInfinite = (options) => {
   );
 
   const setData: CacheSetter = triggerInfinite()
-    ? (value) => queryClient().setQueryData([infiniteQueryKey], value)!
-    : (value) => queryClient().setQueryData([pagesCacheKey()], value)!;
+    ? async (value) => queryClient().setQueryData([infiniteQueryKey], value)
+    : async (value) => queryClient().setQueryData([pagesCacheKey()], value);
 
   const revalidate = triggerInfinite()
     ? () => infiniteQuery.refetch()

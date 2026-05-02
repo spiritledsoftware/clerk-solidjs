@@ -4,9 +4,11 @@ import { IsomorphicClerk } from '../isomorphic-clerk';
 describe('isomorphicClerk', () => {
   beforeAll(() => {
     vitest.useFakeTimers();
+    (globalThis as any).__BUILD_DISABLE_RHC__ = true;
   });
 
   afterAll(() => {
+    (globalThis as any).__BUILD_DISABLE_RHC__ = false;
     vitest.useRealTimers();
   });
 

@@ -1,4 +1,4 @@
-import type { LoadedClerk, Without } from '@clerk/types';
+import type { LoadedClerk, Without } from '@clerk/shared/types';
 import { Accessor, Component, createEffect, JSX, Show } from 'solid-js';
 import { useIsomorphicClerkContext } from '../contexts/isomorphic-clerk';
 import { errorThrower } from '../errors/error-thrower';

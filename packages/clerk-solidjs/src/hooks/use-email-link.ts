@@ -2,7 +2,7 @@ import type {
   EmailAddressResource,
   SignInResource,
   SignUpResource
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import { destructure } from '@solid-primitives/destructure';
 import { Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
 

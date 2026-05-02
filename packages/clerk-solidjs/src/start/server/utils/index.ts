@@ -1,5 +1,5 @@
 import { debugRequestState, RequestState } from '@clerk/backend/internal';
-import { isTruthy } from '@clerk/shared';
+import { isTruthy } from '@clerk/shared/underscore';
 import { getEnvVariable } from '../../utils/env';
 import { AdditionalStateOptions } from '../types';
 

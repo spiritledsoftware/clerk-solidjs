@@ -1,9 +1,6 @@
 import { inBrowser } from '@clerk/shared/browser';
 import { loadClerkJsScript } from '@clerk/shared/loadClerkJsScript';
-import { handleValueOrFn } from '@clerk/shared/utils';
 import type {
-  __experimental_CommerceNamespace,
-  __experimental_PricingTableProps,
   __internal_UserVerificationModalProps,
   __internal_UserVerificationProps,
   AuthenticateWithCoinbaseWalletParams,
@@ -22,12 +19,11 @@ import type {
   HandleOAuthCallbackParams,
   JoinWaitlistParams,
   ListenerCallback,
-  LoadedClerk,
-  NextTaskParams,
   OrganizationListProps,
   OrganizationProfileProps,
   OrganizationResource,
   OrganizationSwitcherProps,
+  PricingTableProps,
   RedirectOptions,
   SetActiveParams,
   SignInProps,
@@ -40,9 +36,9 @@ import type {
   UserButtonProps,
   UserProfileProps,
   WaitlistProps,
-  WaitlistResource,
-  Without
-} from '@clerk/types';
+  WaitlistResource
+} from '@clerk/shared/types';
+import { handleValueOrFn } from '@clerk/shared/utils';
 
 import { errorThrower } from './errors/error-thrower';
 import { unsupportedNonBrowserDomainOrProxyUrlFunction } from './errors/messages';
@@ -66,12 +62,9 @@ const SDK_METADATA = {
   environment: process.env.NODE_ENV
 };
 
-export interface Global {
-  __BUILD_DISABLE_RHC__?: boolean;
-  Clerk?: HeadlessBrowserClerk | BrowserClerk;
+declare global {
+  var Clerk: HeadlessBrowserClerk | BrowserClerk | undefined;
 }
-
-declare const globalThis: Global;
 
 type GenericFunction<TArgs = never> = (...args: TArgs[]) => unknown;
 
@@ -81,29 +74,11 @@ type MethodName<T> = {
 
 type MethodCallback = () => Promise<unknown> | unknown;
 
-type WithVoidReturn<F extends (...args: any) => any> = (
-  ...args: Parameters<F>
-) => ReturnType<F> extends Promise<infer T>
-  ? Promise<T | void>
-  : ReturnType<F> | void;
-type WithVoidReturnFunctions<T> = {
-  [K in keyof T]: T[K] extends (...args: any) => any
-    ? WithVoidReturn<T[K]>
-    : T[K];
+type IsomorphicLoadedClerk = {
+  client: ClientResource | undefined;
 };
 
-type IsomorphicLoadedClerk = Without<
-  WithVoidReturnFunctions<LoadedClerk>,
-  | 'client'
-  | '__internal_addNavigationListener'
-  | '__internal_getCachedResources'
-  | '__internal_reloadInitialResources'
-  | '__experimental_commerce'
-  | '__internal_setComponentNavigationContext'
-> & {
-  client: ClientResource | undefined;
-  __experimental_commerce: __experimental_CommerceNamespace | undefined;
-};
+type NextTaskParams = unknown;
 
 export class IsomorphicClerk implements IsomorphicLoadedClerk {
   private readonly mode: 'browser' | 'server';
@@ -161,7 +136,7 @@ export class IsomorphicClerk implements IsomorphicLoadedClerk {
   >();
   private premountPricingTableNodes = new Map<
     HTMLDivElement,
-    __experimental_PricingTableProps | undefined
+    PricingTableProps | undefined
   >();
   // A separate Map of `addListener` method calls to handle multiple listeners.
   private premountAddListenerCalls = new Map<
@@ -588,7 +563,7 @@ export class IsomorphicClerk implements IsomorphicLoadedClerk {
     });
 
     this.premountPricingTableNodes.forEach((props, node) => {
-      clerkjs.__experimental_mountPricingTable(node, props);
+      clerkjs.mountPricingTable(node, props);
     });
 
     this.#loaded = true;
@@ -658,8 +633,8 @@ export class IsomorphicClerk implements IsomorphicLoadedClerk {
     }
   }
 
-  get __experimental_commerce(): __experimental_CommerceNamespace | undefined {
-    return this.clerkjs?.__experimental_commerce;
+  get __experimental_commerce(): unknown | undefined {
+    return (this.clerkjs as any)?.__experimental_commerce;
   }
 
   __unstable__setEnvironment(...args: any): void {
@@ -679,8 +654,9 @@ export class IsomorphicClerk implements IsomorphicLoadedClerk {
   };
 
   __experimental_nextTask = async (params?: NextTaskParams): Promise<void> => {
-    if (this.clerkjs) {
-      return this.clerkjs.__experimental_nextTask(params);
+    const nextTask = (this.clerkjs as any)?.__experimental_nextTask;
+    if (nextTask) {
+      return nextTask(params);
     } else {
       return Promise.reject();
     }
@@ -843,24 +819,25 @@ export class IsomorphicClerk implements IsomorphicLoadedClerk {
     }
   };
 
-  __experimental_mountPricingTable = (
-    node: HTMLDivElement,
-    props?: __experimental_PricingTableProps
-  ) => {
+  mountPricingTable = (node: HTMLDivElement, props?: PricingTableProps) => {
     if (this.clerkjs && this.#loaded) {
-      this.clerkjs.__experimental_mountPricingTable(node, props);
+      this.clerkjs.mountPricingTable(node, props);
     } else {
       this.premountPricingTableNodes.set(node, props);
     }
   };
 
-  __experimental_unmountPricingTable = (node: HTMLDivElement) => {
+  unmountPricingTable = (node: HTMLDivElement) => {
     if (this.clerkjs && this.#loaded) {
-      this.clerkjs.__experimental_unmountPricingTable(node);
+      this.clerkjs.unmountPricingTable(node);
     } else {
       this.premountPricingTableNodes.delete(node);
     }
   };
+
+  __experimental_mountPricingTable = this.mountPricingTable;
+
+  __experimental_unmountPricingTable = this.unmountPricingTable;
 
   mountSignUp = (node: HTMLDivElement, props?: SignUpProps) => {
     if (this.clerkjs && this.#loaded) {

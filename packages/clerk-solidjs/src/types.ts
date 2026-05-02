@@ -14,7 +14,7 @@ import type {
   SignUpProps,
   SignUpRedirectOptions,
   Without
-} from '@clerk/types';
+} from '@clerk/shared/types';
 import { Accessor, JSX, JSXElement } from 'solid-js';
 
 declare global {
@@ -28,6 +28,11 @@ declare global {
 export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
+
+type LegacyRedirectProps = {
+  afterSignInUrl?: string;
+  afterSignUpUrl?: string;
+};
 
 export type IsomorphicClerkOptions = Without<ClerkOptions, 'isSatellite'> & {
   Clerk?: ClerkProp;
@@ -53,7 +58,8 @@ export type IsomorphicClerkOptions = Without<ClerkOptions, 'isSatellite'> & {
    * @note You can use this to implement [strict-dynamic CSP](https://clerk.com/docs/security/clerk-csp#implementing-a-strict-dynamic-csp)
    */
   nonce?: string;
-} & MultiDomainAndOrProxy;
+} & MultiDomainAndOrProxy &
+  LegacyRedirectProps;
 
 export type ClerkProviderProps = IsomorphicClerkOptions & {
   children: JSX.Element;
@@ -160,7 +166,7 @@ export type UserProfileLinkProps = {
 export type OrganizationProfilePageProps = PageProps<'general' | 'members'>;
 export type OrganizationProfileLinkProps = UserProfileLinkProps;
 
-import type { ClerkAPIResponseError } from '@clerk/shared/error';
+import type { ClerkAPIResponseError } from '@clerk/shared/types';
 
 export type ValueOrSetter<T = unknown> = (size: T | ((_size: T) => T)) => void;
 

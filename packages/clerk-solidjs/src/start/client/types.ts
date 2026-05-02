@@ -1,4 +1,4 @@
-import type { InitialState, Without } from '@clerk/types';
+import type { InitialState, Without } from '@clerk/shared/types';
 import type { JSX } from 'solid-js';
 import type { ClerkProviderProps } from '../../types';
 

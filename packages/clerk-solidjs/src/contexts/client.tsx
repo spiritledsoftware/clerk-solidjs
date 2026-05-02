@@ -1,4 +1,4 @@
-import { ClientResource } from '@clerk/types';
+import { ClientResource } from '@clerk/shared/types';
 import { Accessor } from 'solid-js';
 import { createContextProviderAndHook } from '../utils/create-context-provider-and-hook';
 
