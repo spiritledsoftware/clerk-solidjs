@@ -1,0 +1,7 @@
+{
+  "packages/clerk-solidjs/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
+    "pnpm --filter clerk-solidjs exec prettier --write",
+    "pnpm --filter clerk-solidjs exec eslint --fix --no-warn-ignored"
+  ],
+  "packages/clerk-solidjs/**/*.{json,md,yml,yaml,css}": "pnpm --filter clerk-solidjs exec prettier --write"
+}
