@@ -1,18 +1,35 @@
-import { createMemo } from 'solid-js';
-import { useUserContext } from '../contexts/user';
+import { eventMethodCalled } from '@clerk/shared/telemetry';
+import type { UserResource } from '@clerk/shared/types';
+import type { Accessor } from 'solid-js';
+import { useClerkContext } from '../contexts/clerk-instance';
+import { useUserBase } from './base';
 import { useAssertWrappedByClerkProvider } from './use-assert-wrapped-by-clerk-provider';
 
-export function useUser() {
+export type UseUserReturn = {
+  isLoaded: Accessor<boolean>;
+  isSignedIn: Accessor<boolean | undefined>;
+  user: Accessor<UserResource | null | undefined>;
+};
+
+/**
+ * Access the current user's `User` object.
+ *
+ * `user()` is `undefined` while Clerk loads and `null` when no one is signed in.
+ */
+export function useUser(): UseUserReturn {
   useAssertWrappedByClerkProvider('useUser');
 
-  const user = useUserContext();
+  const { clerk } = useClerkContext('useUser');
+  const user = useUserBase();
 
-  const isLoaded = createMemo(() => user() !== undefined);
-  const isSignedIn = createMemo(() => user() !== null);
+  clerk.telemetry?.record(eventMethodCalled('useUser'));
 
   return {
-    isLoaded,
-    isSignedIn,
+    isLoaded: () => user() !== undefined,
+    isSignedIn: () => {
+      const value = user();
+      return value === undefined ? undefined : value !== null;
+    },
     user
   };
 }

@@ -12,10 +12,12 @@ import {
 import { SignUpButton } from '../sign-up-button';
 
 const mockRedirectToSignUp = vi.fn();
+const mockOpenSignUp = vi.fn();
 const originalError = console.error;
 
 const mockClerk = {
-  redirectToSignUp: mockRedirectToSignUp
+  redirectToSignUp: mockRedirectToSignUp,
+  openSignUp: mockOpenSignUp
 } as any;
 
 vi.mock('../with-clerk', () => {
@@ -40,6 +42,46 @@ describe('<SignUpButton/>', () => {
   beforeEach(() => {
     cleanup();
     mockRedirectToSignUp.mockReset();
+    mockOpenSignUp.mockReset();
+  });
+
+  it('opens the sign-up modal with appearance and unsafeMetadata', async () => {
+    const appearance = { elements: { rootBox: 'test' } };
+    const unsafeMetadata = { plan: 'pro' };
+    render(() => (
+      <SignUpButton
+        mode="modal"
+        appearance={appearance}
+        unsafeMetadata={unsafeMetadata}
+        fallbackRedirectUrl={url}
+        oauthFlow="popup"
+      />
+    ));
+    await userEvent.click(screen.getByText('Sign up'));
+    expect(mockOpenSignUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appearance,
+        unsafeMetadata,
+        fallbackRedirectUrl: url,
+        oauthFlow: 'popup'
+      })
+    );
+    expect(mockRedirectToSignUp).not.toHaveBeenCalled();
+  });
+
+  it('does not pass unsafeMetadata or appearance to the child element', () => {
+    const { container } = render(() => (
+      <SignUpButton
+        mode="modal"
+        appearance={{ elements: { rootBox: 'test' } }}
+        unsafeMetadata={{ plan: 'pro' }}
+      >
+        <button type="button">Sign up</button>
+      </SignUpButton>
+    ));
+    const button = container.querySelector('button');
+    expect(button?.hasAttribute('appearance')).toBe(false);
+    expect(button?.hasAttribute('unsafeMetadata')).toBe(false);
   });
 
   it('calls clerk.redirectToSignUp when clicked', async () => {

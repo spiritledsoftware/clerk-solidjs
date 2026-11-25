@@ -1,34 +1,34 @@
+import type { ClerkClient, ClerkOptions } from '@clerk/backend';
 import { createClerkClient } from '@clerk/backend';
 
-import {
-  API_URL,
-  API_VERSION,
-  DOMAIN,
-  IS_SATELLITE,
-  PROXY_URL,
-  PUBLISHABLE_KEY,
-  SDK_METADATA,
-  SECRET_KEY,
-  TELEMETRY_DEBUG,
-  TELEMETRY_DISABLED
-} from './constants';
+import { commonEnvs } from './constants';
 
-const clerkClient: typeof createClerkClient = (options) =>
-  createClerkClient({
-    secretKey: SECRET_KEY,
-    publishableKey: PUBLISHABLE_KEY,
-    apiUrl: API_URL,
-    apiVersion: API_VERSION,
+/**
+ * Creates a Clerk Backend API client configured from the environment
+ * (`CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, ...). Options override it.
+ *
+ * @example
+ * const user = await clerkClient().users.getUser(userId);
+ */
+const clerkClient = (options?: ClerkOptions): ClerkClient => {
+  const env = commonEnvs();
+  return createClerkClient({
+    secretKey: env.SECRET_KEY,
+    machineSecretKey: env.MACHINE_SECRET_KEY,
+    publishableKey: env.PUBLISHABLE_KEY,
+    apiUrl: env.API_URL,
+    apiVersion: env.API_VERSION,
     userAgent: `${PACKAGE_NAME}@${PACKAGE_VERSION}`,
-    proxyUrl: PROXY_URL,
-    domain: DOMAIN,
-    isSatellite: IS_SATELLITE,
-    sdkMetadata: SDK_METADATA,
+    proxyUrl: env.PROXY_URL,
+    domain: env.DOMAIN,
+    isSatellite: env.IS_SATELLITE,
+    sdkMetadata: env.SDK_METADATA,
     telemetry: {
-      disabled: TELEMETRY_DISABLED,
-      debug: TELEMETRY_DEBUG
+      disabled: env.TELEMETRY_DISABLED,
+      debug: env.TELEMETRY_DEBUG
     },
     ...options
   });
+};
 
 export { clerkClient };

@@ -1,55 +1,61 @@
-import { children as childrenFn, createMemo, splitProps } from 'solid-js';
+import type { SignInProps } from '@clerk/shared/types';
+import { omit } from 'solid-js';
 import type { SignInButtonProps, WithClerkProp } from '../types';
-import {
-  assertSingleChild,
-  normalizeWithDefaultValue,
-  safeExecute
-} from '../utils';
+import { ClerkButton } from '../utils/children-utils';
 import { withClerk } from './with-clerk';
 
 export const SignInButton = withClerk(
   (props: WithClerkProp<SignInButtonProps>) => {
-    const [local, clerkProps, rest] = splitProps(
-      props,
-      ['children'],
-      [
-        'clerk',
-        'signUpFallbackRedirectUrl',
-        'signUpForceRedirectUrl',
-        'forceRedirectUrl',
-        'fallbackRedirectUrl',
-        'mode',
-        'onClick'
-      ]
-    );
-    const children = childrenFn(() =>
-      normalizeWithDefaultValue(local.children, 'Sign in')
-    );
-    const child = createMemo(() =>
-      assertSingleChild(children())('SignInButton')
+    const buttonProps = omit(
+      props as WithClerkProp<SignInButtonProps> & { appearance?: unknown },
+      'clerk',
+      'component',
+      'children',
+      'appearance',
+      'signUpFallbackRedirectUrl',
+      'forceRedirectUrl',
+      'fallbackRedirectUrl',
+      'signUpForceRedirectUrl',
+      'mode',
+      'initialValues',
+      'withSignUp',
+      'oauthFlow'
     );
 
-    const clickHandler = async () => {
-      const { onClick, mode, clerk, ...opts } = clerkProps;
-      if (onClick) {
-        await safeExecute(onClick)();
-      }
+    const clickHandler = () => {
+      const opts: SignInProps = {
+        forceRedirectUrl: props.forceRedirectUrl,
+        fallbackRedirectUrl: props.fallbackRedirectUrl,
+        signUpFallbackRedirectUrl: props.signUpFallbackRedirectUrl,
+        signUpForceRedirectUrl: props.signUpForceRedirectUrl,
+        initialValues: props.initialValues,
+        withSignUp: props.withSignUp,
+        oauthFlow: props.oauthFlow
+      };
 
-      if (mode === 'modal') {
-        return clerk().openSignIn(opts);
+      if (props.mode === 'modal') {
+        return props.clerk().openSignIn({
+          ...opts,
+          appearance: props.appearance
+        });
       }
-      return clerk().redirectToSignIn({
+      return props.clerk().redirectToSignIn({
         ...opts,
-        signInFallbackRedirectUrl: clerkProps.fallbackRedirectUrl,
-        signInForceRedirectUrl: clerkProps.forceRedirectUrl
+        signInFallbackRedirectUrl: props.fallbackRedirectUrl,
+        signInForceRedirectUrl: props.forceRedirectUrl
       });
     };
 
     return (
-      <button {...rest} onClick={clickHandler}>
-        {child()}
-      </button>
+      <ClerkButton
+        name="SignInButton"
+        defaultText="Sign in"
+        buttonProps={buttonProps}
+        onActivate={clickHandler}
+      >
+        {props.children}
+      </ClerkButton>
     );
   },
-  'SignInButton'
+  { component: 'SignInButton', renderWhileLoading: true }
 );

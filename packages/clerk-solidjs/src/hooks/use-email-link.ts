@@ -1,21 +1,58 @@
 import type {
+  CreateEmailLinkFlowReturn,
   EmailAddressResource,
   SignInResource,
-  SignUpResource
+  SignInStartEmailLinkFlowParams,
+  SignUpResource,
+  StartEmailLinkFlowParams
 } from '@clerk/shared/types';
-import { destructure } from '@solid-primitives/destructure';
-import { Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
+import { type Accessor, createEffect, createMemo } from 'solid-js';
 
 type EmailLinkable = SignUpResource | EmailAddressResource | SignInResource;
+type UseEmailLinkSignInReturn = CreateEmailLinkFlowReturn<
+  SignInStartEmailLinkFlowParams,
+  SignInResource
+>;
+type UseEmailLinkSignUpReturn = CreateEmailLinkFlowReturn<
+  StartEmailLinkFlowParams,
+  SignUpResource
+>;
+type UseEmailLinkEmailAddressReturn = CreateEmailLinkFlowReturn<
+  StartEmailLinkFlowParams,
+  EmailAddressResource
+>;
 
-function useEmailLink(resource: Accessor<EmailLinkable>) {
-  const linkFlows = createMemo(() => resource().createEmailLinkFlow());
+/**
+ * Start and cancel an email link flow for a sign-in, sign-up, or email address.
+ * The flow follows the resource accessor and is cancelled when it changes or the owner disposes.
+ */
+function useEmailLink(
+  resource: Accessor<SignInResource>
+): UseEmailLinkSignInReturn;
+function useEmailLink(
+  resource: Accessor<SignUpResource>
+): UseEmailLinkSignUpReturn;
+function useEmailLink(
+  resource: Accessor<EmailAddressResource>
+): UseEmailLinkEmailAddressReturn;
+function useEmailLink(
+  resource: Accessor<EmailLinkable>
+):
+  | UseEmailLinkSignInReturn
+  | UseEmailLinkSignUpReturn
+  | UseEmailLinkEmailAddressReturn {
+  const flow = createMemo(() => resource().createEmailLinkFlow());
 
-  createEffect(() => {
-    onCleanup(linkFlows().cancelEmailLinkFlow);
-  });
+  createEffect(
+    () => flow(),
+    (current) => () => current.cancelEmailLinkFlow()
+  );
 
-  return destructure(linkFlows);
+  return {
+    startEmailLinkFlow: (params: any) =>
+      (flow().startEmailLinkFlow as (p: any) => Promise<any>)(params),
+    cancelEmailLinkFlow: () => flow().cancelEmailLinkFlow()
+  } as UseEmailLinkSignInReturn;
 }
 
 export { useEmailLink };
