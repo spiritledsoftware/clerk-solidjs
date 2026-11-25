@@ -1,16 +1,16 @@
-import { getPublicEnvVariables } from '../utils/env';
-import { SolidStartClerkProviderProps } from './types';
+import type { InitialState } from '@clerk/shared/types';
 
-type SolidStartProviderAndInitialProps = Omit<
-  SolidStartClerkProviderProps,
-  'children'
->;
+import { getPublicEnvVariables } from '../shared/env';
+import type { ClerkInitialState } from '../shared/state';
 
+/**
+ * Provider options carried by the middleware state, plus the SSR auth state.
+ *
+ * @internal
+ */
 export const pickFromClerkInitState = (
-  clerkInitState: any
-): SolidStartProviderAndInitialProps & {
-  clerkSsrState: any;
-} => {
+  clerkInitState: ClerkInitialState['__internal_clerk_state'] | undefined
+) => {
   const {
     __clerk_ssr_state,
     __publishableKey,
@@ -19,60 +19,73 @@ export const pickFromClerkInitState = (
     __isSatellite,
     __signInUrl,
     __signUpUrl,
-    __afterSignInUrl,
-    __afterSignUpUrl,
     __clerkJSUrl,
     __clerkJSVersion,
+    __clerkUIUrl,
+    __clerkUIVersion,
     __telemetryDisabled,
     __telemetryDebug,
     __signInForceRedirectUrl,
     __signUpForceRedirectUrl,
     __signInFallbackRedirectUrl,
     __signUpFallbackRedirectUrl
-  } = clerkInitState || {};
+  } =
+    clerkInitState ||
+    ({} as Partial<ClerkInitialState['__internal_clerk_state']>);
 
   return {
-    clerkSsrState: __clerk_ssr_state,
-    publishableKey: __publishableKey,
-    proxyUrl: __proxyUrl,
-    domain: __domain,
-    isSatellite: !!__isSatellite,
-    signInUrl: __signInUrl,
-    signUpUrl: __signUpUrl,
-    afterSignInUrl: __afterSignInUrl,
-    afterSignUpUrl: __afterSignUpUrl,
-    clerkJSUrl: __clerkJSUrl,
-    clerkJSVersion: __clerkJSVersion,
-    telemetry: {
-      disabled: __telemetryDisabled,
-      debug: __telemetryDebug
-    },
-    signInForceRedirectUrl: __signInForceRedirectUrl,
-    signUpForceRedirectUrl: __signUpForceRedirectUrl,
-    signInFallbackRedirectUrl: __signInFallbackRedirectUrl,
-    signUpFallbackRedirectUrl: __signUpFallbackRedirectUrl
+    clerkSsrState: __clerk_ssr_state as InitialState | undefined,
+    options: {
+      publishableKey: __publishableKey,
+      proxyUrl: __proxyUrl,
+      domain: __domain,
+      isSatellite: !!__isSatellite,
+      signInUrl: __signInUrl,
+      signUpUrl: __signUpUrl,
+      __internal_clerkJSUrl: __clerkJSUrl,
+      __internal_clerkJSVersion: __clerkJSVersion,
+      __internal_clerkUIUrl: __clerkUIUrl,
+      __internal_clerkUIVersion: __clerkUIVersion,
+      telemetry: {
+        disabled: __telemetryDisabled,
+        debug: __telemetryDebug
+      },
+      signInForceRedirectUrl: __signInForceRedirectUrl || undefined,
+      signUpForceRedirectUrl: __signUpForceRedirectUrl || undefined,
+      signInFallbackRedirectUrl: __signInFallbackRedirectUrl || undefined,
+      signUpFallbackRedirectUrl: __signUpFallbackRedirectUrl || undefined
+    }
   };
 };
 
-export const mergeWithPublicEnvs = (restInitState: any) => {
-  const publicEnvVariables = getPublicEnvVariables();
+type PickedOptions = ReturnType<typeof pickFromClerkInitState>['options'];
+
+/**
+ * Fills options the middleware state left empty from `VITE_CLERK_*` / `CLERK_*`.
+ *
+ * @internal
+ */
+export const mergeWithPublicEnvs = (options: PickedOptions) => {
+  const env = getPublicEnvVariables();
   return {
-    ...restInitState,
-    publishableKey:
-      restInitState.publishableKey || publicEnvVariables.publishableKey,
-    domain: restInitState.domain || publicEnvVariables.domain,
-    isSatellite: restInitState.isSatellite || publicEnvVariables.isSatellite,
-    signInUrl: restInitState.signInUrl || publicEnvVariables.signInUrl,
-    signUpUrl: restInitState.signUpUrl || publicEnvVariables.signUpUrl,
-    afterSignInUrl:
-      restInitState.afterSignInUrl || publicEnvVariables.afterSignInUrl,
-    afterSignUpUrl:
-      restInitState.afterSignUpUrl || publicEnvVariables.afterSignUpUrl,
-    clerkJSUrl: restInitState.clerkJSUrl || publicEnvVariables.clerkJsUrl,
-    clerkJSVersion:
-      restInitState.clerkJSVersion || publicEnvVariables.clerkJsVersion,
-    signInForceRedirectUrl: restInitState.signInForceRedirectUrl,
-    clerkJSVariant:
-      restInitState.clerkJSVariant || publicEnvVariables.clerkJsVariant
+    ...options,
+    publishableKey: options.publishableKey || env.publishableKey || undefined,
+    domain: options.domain || env.domain || undefined,
+    proxyUrl: options.proxyUrl || env.proxyUrl || undefined,
+    isSatellite: options.isSatellite || env.isSatellite,
+    signInUrl: options.signInUrl || env.signInUrl || undefined,
+    signUpUrl: options.signUpUrl || env.signUpUrl || undefined,
+    __internal_clerkJSUrl:
+      options.__internal_clerkJSUrl || env.clerkJsUrl || undefined,
+    __internal_clerkJSVersion:
+      options.__internal_clerkJSVersion || env.clerkJsVersion || undefined,
+    __internal_clerkUIUrl:
+      options.__internal_clerkUIUrl || env.clerkUIUrl || undefined,
+    __internal_clerkUIVersion:
+      options.__internal_clerkUIVersion || env.clerkUIVersion || undefined,
+    telemetry: {
+      disabled: options.telemetry.disabled || env.telemetryDisabled,
+      debug: options.telemetry.debug || env.telemetryDebug
+    }
   };
 };

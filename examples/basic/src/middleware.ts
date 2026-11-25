@@ -1,11 +1,5 @@
-import { createMiddleware } from "@solidjs/start/middleware";
 import { clerkMiddleware } from "clerk-solidjs/start/server";
 
-export default createMiddleware({
-  onRequest: [
-    clerkMiddleware({
-      publishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-      secretKey: import.meta.env.CLERK_SECRET_KEY,
-    }),
-  ],
-});
+// Reads CLERK_SECRET_KEY and VITE_CLERK_PUBLISHABLE_KEY from the environment.
+// Pass options (or a per-request callback) to override them.
+export default [clerkMiddleware()];

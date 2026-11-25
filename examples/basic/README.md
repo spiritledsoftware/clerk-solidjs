@@ -1,32 +1,28 @@
-# SolidStart
+# clerk-solidjs basic example
 
-Everything you need to build a Solid project, powered by [`solid-start`](https://start.solidjs.com);
+A server-rendered Solid 2 app using `clerk-solidjs` with [`@solidjs/vite-plugin`](https://github.com/solidjs/solid-vite-plugin) start mode (streaming SSR, middleware, and server functions) and Solid Router 2.
 
-## Creating a project
-
-```bash
-# create a new project in the current directory
-npm init solid@latest
-
-# create a new project in my-app
-npm init solid@latest my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Setup
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+cp .env.example .env # then fill in your keys from https://dashboard.clerk.com
+pnpm install
+pnpm --filter clerk-solidjs build # the example uses the workspace build of the library
 ```
 
-## Building
+## Develop and build
 
-Solid apps are built with _presets_, which optimise your project for deployment to different environments.
+```bash
+pnpm dev     # vite dev server
+pnpm build   # vite build -> dist/client and dist/server
+pnpm serve   # vite preview of the production build
+```
 
-By default, `npm run build` will generate a Node app that you can run with `npm start`. To use a different preset, add it to the `devDependencies` in `package.json` and specify in your `app.config.js`.
+## How it fits together
 
-## This project was created with the [Solid CLI](https://solid-cli.netlify.app)
+- `vite.config.ts` enables start mode: `solid({ start: { middleware: './src/middleware.ts' }, ssr: true, serverFunctions: true })`. It also folds `.env` into `process.env`, where Clerk reads `CLERK_SECRET_KEY` on the server.
+- `src/middleware.ts` runs `clerkMiddleware()` from `clerk-solidjs/start/server` on every request. It authenticates the request, answers Clerk handshakes, and stores the auth state on the request event's `locals`.
+- `src/App.tsx` mounts the router and wraps the routes in `ClerkProvider` from `clerk-solidjs/start`. The provider renders the request's auth state on the server and hands it to the browser for hydration. It also uses Solid Router for Clerk's navigation.
+- `src/Document.tsx` is the HTML shell, with `<HydrationScript />`.
+- `src/server/viewer.ts` is a `"use server"` module. `getViewer()` calls `auth()` to identify the caller from the request, then reads the user with `clerkClient()`.
+- Pages: `/` (sign in/out), `/waitlist` (the `<Waitlist />` component), and `/protected` (calls `getViewer()` during SSR).

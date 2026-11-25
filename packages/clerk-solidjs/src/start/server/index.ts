@@ -1,14 +1,23 @@
-export * from './auth';
-export * from './middleware';
+import { setErrorThrowerOptions } from '../../errors/error-thrower';
 
+export { auth } from './auth';
 export { clerkClient } from './clerk-client';
+export { clerkMiddleware } from './middleware';
+export type { ClerkMiddleware, ClerkMiddlewareEvent } from './middleware';
+export type {
+  ClerkMiddlewareOptions,
+  ClerkMiddlewareOptionsCallback
+} from './types';
+// Also brings the `locals.auth` / `locals.clerkInitialState` augmentation of
+// `RequestEventLocals` from `@solidjs/web` into the importer's program.
+export type { ClerkInitialState, RequestAuthFn } from '../shared/state';
 
 /**
  * Re-export resource types from @clerk/backend
  */
 export type {
-  // Resources
   AllowlistIdentifier,
+  AuthObject,
   Client,
   EmailAddress,
   ExternalAccount,
@@ -20,12 +29,15 @@ export type {
   OrganizationMembershipPublicUserData,
   OrganizationMembershipRole,
   PhoneNumber,
-  SMSMessage,
   Session,
+  SessionAuthObject,
   SignInToken,
+  SMSMessage,
   Token,
   User,
   // Webhook event types
   WebhookEvent,
   WebhookEventType
 } from '@clerk/backend';
+
+setErrorThrowerOptions({ packageName: PACKAGE_NAME });

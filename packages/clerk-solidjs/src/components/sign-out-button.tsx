@@ -1,42 +1,47 @@
-import { children as childrenFn, createMemo, splitProps } from 'solid-js';
+import { deprecated } from '@clerk/shared/deprecated';
+import { omit } from 'solid-js';
 import type { SignOutButtonProps, WithClerkProp } from '../types';
-import {
-  assertSingleChild,
-  normalizeWithDefaultValue,
-  safeExecute
-} from '../utils';
+import { ClerkButton } from '../utils/children-utils';
 import { withClerk } from './with-clerk';
 
 export const SignOutButton = withClerk(
   (props: WithClerkProp<SignOutButtonProps>) => {
-    const [local, clerk, rest] = splitProps(
+    const buttonProps = omit(
       props,
-      ['children'],
-      ['clerk', 'redirectUrl', 'sessionId', 'onClick']
+      'clerk',
+      'component',
+      'children',
+      'redirectUrl',
+      'sessionId',
+      'signOutOptions'
     );
 
-    const children = childrenFn(() =>
-      normalizeWithDefaultValue(local.children, 'Sign out')
-    );
-    const child = createMemo(() =>
-      assertSingleChild(children())('SignOutButton')
-    );
-
-    const clickHandler = async () => {
-      if (clerk.onClick) {
-        await safeExecute(clerk.onClick)();
+    const clickHandler = () => {
+      const signOutOptions = props.signOutOptions;
+      if (signOutOptions) {
+        deprecated(
+          'SignOutButton `signOutOptions`',
+          'Use the `redirectUrl` and `sessionId` props directly instead.'
+        );
       }
-      clerk.clerk().signOut({
-        redirectUrl: clerk.redirectUrl,
-        sessionId: clerk.sessionId
+      const sessionId = props.sessionId;
+      return props.clerk().signOut({
+        redirectUrl: props.redirectUrl ?? '/',
+        ...(sessionId !== undefined && { sessionId }),
+        ...signOutOptions
       });
     };
 
     return (
-      <button {...rest} onClick={clickHandler}>
-        {child()}
-      </button>
+      <ClerkButton
+        name="SignOutButton"
+        defaultText="Sign out"
+        buttonProps={buttonProps}
+        onActivate={clickHandler}
+      >
+        {props.children}
+      </ClerkButton>
     );
   },
-  'SignOutButton'
+  { component: 'SignOutButton', renderWhileLoading: true }
 );

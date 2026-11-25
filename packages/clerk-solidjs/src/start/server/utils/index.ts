@@ -1,29 +1,26 @@
-import { debugRequestState, RequestState } from '@clerk/backend/internal';
+import type { RequestState } from '@clerk/backend/internal';
+import { debugRequestState } from '@clerk/backend/internal';
 import { isTruthy } from '@clerk/shared/underscore';
-import { getEnvVariable } from '../../utils/env';
-import { AdditionalStateOptions } from '../types';
+
+import { getValue } from '../../shared/env';
+import type { ClerkInitialState } from '../../shared/state';
+import type { AdditionalStateOptions } from '../types';
 
 /**
- * Wraps obscured clerk internals with a readable `clerkState` key.
- * This is intended to be passed into <ClerkProvider>
+ * Builds the state the start `ClerkProvider` hydrates from.
  *
- * @internal
- */
-export const wrapWithClerkState = (data: any) => {
-  return { __internal_clerk_state: { ...data } };
-};
-
-/**
- * Returns the clerk state object and observability headers to be injected into a context.
+ * The result goes through Solid's hydration serializer, which rejects
+ * functions, so the auth object is reduced to its JSON form (dropping
+ * `getToken`, `has`, ...), as the other Clerk SDKs do when they embed it in HTML.
  *
  * @internal
  */
 export function getResponseClerkState(
   requestState: RequestState,
   additionalStateOptions: AdditionalStateOptions = {}
-) {
-  const clerkInitialState = wrapWithClerkState({
-    __clerk_ssr_state: requestState.toAuth(),
+): ClerkInitialState {
+  const state: ClerkInitialState['__internal_clerk_state'] = {
+    __clerk_ssr_state: requestState.toAuth() as any,
     __publishableKey: requestState.publishableKey,
     __proxyUrl: requestState.proxyUrl,
     __domain: requestState.domain,
@@ -33,58 +30,29 @@ export function getResponseClerkState(
     __afterSignInUrl: requestState.afterSignInUrl,
     __afterSignUpUrl: requestState.afterSignUpUrl,
     __clerk_debug: debugRequestState(requestState),
-    __clerkJSUrl: getEnvVariable('CLERK_JS'),
-    __clerkJSVersion: getEnvVariable('CLERK_JS_VERSION'),
-    __telemetryDisabled: isTruthy(getEnvVariable('CLERK_TELEMETRY_DISABLED')),
-    __telemetryDebug: isTruthy(getEnvVariable('CLERK_TELEMETRY_DEBUG')),
+    __clerkJSUrl: getValue('CLERK_JS_URL') || getValue('CLERK_JS'),
+    __clerkJSVersion: getValue('CLERK_JS_VERSION'),
+    __clerkUIUrl: getValue('CLERK_UI_URL'),
+    __clerkUIVersion: getValue('CLERK_UI_VERSION'),
+    __telemetryDisabled: isTruthy(getValue('CLERK_TELEMETRY_DISABLED')),
+    __telemetryDebug: isTruthy(getValue('CLERK_TELEMETRY_DEBUG')),
     __signInForceRedirectUrl:
       additionalStateOptions.signInForceRedirectUrl ||
-      getEnvVariable('CLERK_SIGN_IN_FORCE_REDIRECT_URL') ||
+      getValue('CLERK_SIGN_IN_FORCE_REDIRECT_URL') ||
       '',
     __signUpForceRedirectUrl:
       additionalStateOptions.signUpForceRedirectUrl ||
-      getEnvVariable('CLERK_SIGN_UP_FORCE_REDIRECT_URL') ||
+      getValue('CLERK_SIGN_UP_FORCE_REDIRECT_URL') ||
       '',
     __signInFallbackRedirectUrl:
       additionalStateOptions.signInFallbackRedirectUrl ||
-      getEnvVariable('CLERK_SIGN_IN_FALLBACK_REDIRECT_URL') ||
+      getValue('CLERK_SIGN_IN_FALLBACK_REDIRECT_URL') ||
       '',
     __signUpFallbackRedirectUrl:
       additionalStateOptions.signUpFallbackRedirectUrl ||
-      getEnvVariable('CLERK_SIGN_UP_FALLBACK_REDIRECT_URL') ||
+      getValue('CLERK_SIGN_UP_FALLBACK_REDIRECT_URL') ||
       ''
-  });
-
-  return {
-    clerkInitialState,
-    headers: requestState.headers
   };
+
+  return { __internal_clerk_state: JSON.parse(JSON.stringify(state)) };
 }
-
-/**
- * Patches request to avoid duplex issues with unidici
- * For more information, see:
- * https://github.com/nodejs/node/issues/46221
- * https://github.com/whatwg/fetch/pull/1457
- * @internal
- */
-export const patchRequest = (request: Request) => {
-  const clonedRequest = new Request(request.url, {
-    headers: request.headers,
-    method: request.method,
-    redirect: request.redirect,
-    cache: request.cache,
-    signal: request.signal
-  });
-
-  // If duplex is not set, set it to 'half' to avoid duplex issues with unidici
-  if (
-    clonedRequest.method !== 'GET' &&
-    clonedRequest.body !== null &&
-    !('duplex' in clonedRequest)
-  ) {
-    (clonedRequest as unknown as { duplex: 'half' }).duplex = 'half';
-  }
-
-  return clonedRequest;
-};

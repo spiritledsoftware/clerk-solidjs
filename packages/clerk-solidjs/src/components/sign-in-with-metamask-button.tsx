@@ -1,46 +1,35 @@
-import { children as childrenFn, createMemo, splitProps } from 'solid-js';
+import { omit } from 'solid-js';
 import type { SignInWithMetamaskButtonProps, WithClerkProp } from '../types';
-import {
-  assertSingleChild,
-  normalizeWithDefaultValue,
-  safeExecute
-} from '../utils';
+import { ClerkButton } from '../utils/children-utils';
 import { withClerk } from './with-clerk';
 
 export const SignInWithMetamaskButton = withClerk(
   (props: WithClerkProp<SignInWithMetamaskButtonProps>) => {
-    const [local, clerkProps, rest] = splitProps(
+    const buttonProps = omit(
       props,
-      ['children'],
-      ['clerk', 'redirectUrl', 'onClick']
+      'clerk',
+      'component',
+      'children',
+      'redirectUrl',
+      'mode'
     );
 
-    const children = childrenFn(() =>
-      normalizeWithDefaultValue(local.children, 'Sign in with Metamask')
-    );
-    const child = createMemo(() =>
-      assertSingleChild(children())('SignInWithMetamaskButton')
-    );
-
-    const clickHandler = async () => {
-      const { onClick, clerk, ...opts } = clerkProps;
-      if (onClick) {
-        await safeExecute(onClick)();
-      }
-      async function authenticate() {
-        await clerk().authenticateWithMetamask({
-          ...opts,
-          redirectUrl: opts.redirectUrl || undefined
-        });
-      }
-      void authenticate();
+    const clickHandler = () => {
+      void props.clerk().authenticateWithMetamask({
+        redirectUrl: props.redirectUrl || undefined
+      });
     };
 
     return (
-      <button {...rest} onClick={clickHandler}>
-        {child()}
-      </button>
+      <ClerkButton
+        name="SignInWithMetamaskButton"
+        defaultText="Sign in with Metamask"
+        buttonProps={buttonProps}
+        onActivate={clickHandler}
+      >
+        {props.children}
+      </ClerkButton>
     );
   },
-  'SignInWithMetamask'
+  { component: 'SignInWithMetamask', renderWhileLoading: true }
 );

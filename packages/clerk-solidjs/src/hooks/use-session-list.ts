@@ -1,25 +1,30 @@
-import { createMemo } from 'solid-js';
-import { useClerkInstanceContext } from '../contexts/clerk-instance';
-import { useClientContext } from '../contexts/client';
-import { IsomorphicClerk } from '../isomorphic-clerk';
+import { eventMethodCalled } from '@clerk/shared/telemetry';
+import type { SessionResource, SetActive } from '@clerk/shared/types';
+import { type Accessor, createMemo } from 'solid-js';
+import { useClerkContext } from '../contexts/clerk-instance';
+import { useClientBase } from './base';
 import { useAssertWrappedByClerkProvider } from './use-assert-wrapped-by-clerk-provider';
 
-export const useSessionList = () => {
+export type UseSessionListReturn = {
+  isLoaded: Accessor<boolean>;
+  sessions: Accessor<SessionResource[] | undefined>;
+  setActive: SetActive;
+};
+
+/**
+ * Access the sessions on the current client and switch between them.
+ */
+export const useSessionList = (): UseSessionListReturn => {
   useAssertWrappedByClerkProvider('useSessionList');
 
-  const isomorphicClerk = useClerkInstanceContext();
-  const client = useClientContext();
+  const { clerk } = useClerkContext('useSessionList');
+  const client = useClientBase();
 
-  const isLoaded = createMemo(() => !!client());
-  const sessions = createMemo(() => client()?.sessions);
-
-  const setActive = (params: Parameters<IsomorphicClerk['setActive']>[0]) => {
-    return isomorphicClerk()?.setActive(params);
-  };
+  clerk.telemetry?.record(eventMethodCalled('useSessionList'));
 
   return {
-    isLoaded,
-    sessions,
-    setActive
+    isLoaded: createMemo(() => !!client()),
+    sessions: createMemo(() => client()?.sessions),
+    setActive: (params) => clerk.setActive(params) as Promise<void>
   };
 };

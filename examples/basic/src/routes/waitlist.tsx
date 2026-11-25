@@ -1,20 +1,15 @@
-import { useWindowSize } from "@solid-primitives/resize-observer";
-import { A } from "@solidjs/router";
 import {
   ClerkLoaded,
   ClerkLoading,
-  SignedIn,
-  SignedOut,
+  Show,
   SignOutButton,
   UserButton,
-  Waitlist
-} from "clerk-solidjs";
+  Waitlist,
+} from "clerk-solidjs/start";
 
-export default function Home() {
-  const size = useWindowSize();
-
+export default function WaitlistPage() {
   return (
-    <div class="flex flex-col w-screen h-screen items-center justify-center gap-2">
+    <main class="flex flex-col w-screen h-screen items-center justify-center gap-2">
       <h1 class="text-3xl font-bold mb-5 font-mono bg-slate-300 rounded-md p-1">
         clerk-solidjs
       </h1>
@@ -22,17 +17,17 @@ export default function Home() {
         <p>Loading...</p>
       </ClerkLoading>
       <ClerkLoaded>
-        <SignedOut>
+        <Show when="signed-out">
           <Waitlist />
-        </SignedOut>
-        <SignedIn>
-          <UserButton showName={size.width > 768} />
+        </Show>
+        <Show when="signed-in">
+          <UserButton showName />
           <SignOutButton class="bg-slate-200 rounded-md px-3 py-1" />
-        </SignedIn>
+        </Show>
       </ClerkLoaded>
-      <A href="/protected" class="bg-slate-200 rounded-md px-3 py-1">
-        Protected Page
-      </A>
-    </div>
+      <a href="/" class="bg-slate-200 rounded-md px-3 py-1">
+        Back
+      </a>
+    </main>
   );
 }

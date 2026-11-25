@@ -1,6 +1,5 @@
-import { createRequire } from 'module';
-import solid from 'vite-plugin-solid';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import solid from '@solidjs/vite-plugin';
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vitest/config';
 
 const require = createRequire(import.meta.url);
@@ -10,17 +9,19 @@ const {
 } = require('./node_modules/@clerk/clerk-js/package.json');
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), solid()],
+  plugins: [solid()],
   define: {
     PACKAGE_NAME: `"${name}"`,
     PACKAGE_VERSION: `"${version}"`,
-    JS_PACKAGE_VERSION: `"${clerkJsVersion}"`
+    JS_PACKAGE_VERSION: `"${clerkJsVersion}"`,
+    __DEV__: 'true'
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./node_modules/@testing-library/jest-dom/vitest']
   },
   resolve: {
-    conditions: ['development', 'browser']
+    conditions: ['development', 'browser'],
+    tsconfigPaths: true
   }
 });

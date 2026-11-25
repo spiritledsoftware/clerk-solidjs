@@ -49,6 +49,32 @@ describe('<SignInWithMetamaskButton/>', () => {
     });
   });
 
+  it('passes redirectUrl to clerk.authenticateWithMetamask', async () => {
+    render(() => <SignInWithMetamaskButton redirectUrl="/done" />);
+    await userEvent.click(screen.getByText('Sign in with Metamask'));
+    await waitFor(() => {
+      expect(mockAuthenticatewithMetamask).toHaveBeenCalledWith({
+        redirectUrl: '/done'
+      });
+    });
+  });
+
+  it('renders passed button and calls both click handlers', async () => {
+    const handler = vi.fn();
+    render(() => (
+      <SignInWithMetamaskButton>
+        <button type="button" onClick={handler}>
+          custom button
+        </button>
+      </SignInWithMetamaskButton>
+    ));
+    await userEvent.click(screen.getByText('custom button'));
+    await waitFor(() => {
+      expect(handler).toHaveBeenCalled();
+      expect(mockAuthenticatewithMetamask).toHaveBeenCalled();
+    });
+  });
+
   it('uses text passed as children', () => {
     render(() => <SignInWithMetamaskButton>text</SignInWithMetamaskButton>);
     screen.getByText('text');

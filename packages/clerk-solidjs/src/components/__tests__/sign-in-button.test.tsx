@@ -1,4 +1,5 @@
-import { cleanup, render, screen } from '@solidjs/testing-library';
+import { cleanup, render, screen, waitFor } from '@solidjs/testing-library';
+import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import {
   afterAll,
@@ -12,10 +13,12 @@ import {
 import { SignInButton } from '../sign-in-button';
 
 const mockRedirectToSignIn = vi.fn();
+const mockOpenSignIn = vi.fn();
 const originalError = console.error;
 
 const mockClerk = {
-  redirectToSignIn: mockRedirectToSignIn
+  redirectToSignIn: mockRedirectToSignIn,
+  openSignIn: mockOpenSignIn
 } as any;
 
 vi.mock('../with-clerk', () => {
@@ -40,6 +43,7 @@ describe('<SignInButton/>', () => {
   beforeEach(() => {
     cleanup();
     mockRedirectToSignIn.mockReset();
+    mockOpenSignIn.mockReset();
   });
 
   it('calls clerk.redirectToSignIn when clicked', async () => {
@@ -88,7 +92,104 @@ describe('<SignInButton/>', () => {
     await userEvent.click(btn);
 
     expect(handler).toHaveBeenCalled();
-    expect(mockRedirectToSignIn).toHaveBeenCalled();
+    await waitFor(() => expect(mockRedirectToSignIn).toHaveBeenCalled());
+  });
+
+  it('renders an element child as is, without wrapping it in another button', () => {
+    const { container } = render(() => (
+      <SignInButton>
+        <button type="button">custom button</button>
+      </SignInButton>
+    ));
+    expect(container.querySelectorAll('button')).toHaveLength(1);
+  });
+
+  it('runs the child click handler before the Clerk action', async () => {
+    const order: string[] = [];
+    mockRedirectToSignIn.mockImplementation(() => order.push('clerk'));
+
+    render(() => (
+      <SignInButton>
+        <a href="#sign-in" onClick={() => order.push('child')}>
+          custom link
+        </a>
+      </SignInButton>
+    ));
+    await userEvent.click(screen.getByText('custom link'));
+
+    await waitFor(() => expect(order).toEqual(['child', 'clerk']));
+  });
+
+  it('accepts a single child passed as an array', async () => {
+    const handler = vi.fn();
+
+    render(() => (
+      <SignInButton>
+        {[
+          <button onClick={handler} type="button">
+            custom button
+          </button>
+        ]}
+      </SignInButton>
+    ));
+
+    await userEvent.click(screen.getByText('custom button'));
+
+    expect(handler).toHaveBeenCalled();
+    await waitFor(() => expect(mockRedirectToSignIn).toHaveBeenCalled());
+  });
+
+  it('applies HTML attributes to the default button', () => {
+    render(() => <SignInButton class="my-button" />);
+    expect(screen.getByText('Sign in')).toHaveClass('my-button');
+  });
+
+  it('opens the sign-in modal with the modal props', async () => {
+    const appearance = { elements: { rootBox: 'test' } };
+    render(() => (
+      <SignInButton
+        mode="modal"
+        appearance={appearance}
+        forceRedirectUrl={url}
+        initialValues={{ emailAddress: 'a@b.c' }}
+        withSignUp
+      />
+    ));
+
+    await userEvent.click(screen.getByText('Sign in'));
+
+    expect(mockOpenSignIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appearance,
+        forceRedirectUrl: url,
+        initialValues: { emailAddress: 'a@b.c' },
+        withSignUp: true
+      })
+    );
+    expect(mockRedirectToSignIn).not.toHaveBeenCalled();
+  });
+
+  it('does not pass appearance prop to child element', () => {
+    const { container } = render(() => (
+      <SignInButton mode="modal" appearance={{ elements: { rootBox: 'test' } }}>
+        <button type="button">Sign in</button>
+      </SignInButton>
+    ));
+
+    const button = container.querySelector('button');
+    expect(button?.hasAttribute('appearance')).toBe(false);
+  });
+
+  it('does not pass appearance prop to the default button', () => {
+    const { container } = render(() => (
+      <SignInButton
+        mode="modal"
+        appearance={{ elements: { rootBox: 'test' } }}
+      />
+    ));
+
+    const button = container.querySelector('button');
+    expect(button?.hasAttribute('appearance')).toBe(false);
   });
 
   it('uses text passed as children', async () => {

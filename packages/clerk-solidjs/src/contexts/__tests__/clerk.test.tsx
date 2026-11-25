@@ -1,4 +1,5 @@
 import {
+  beBY,
   csCZ,
   deDE,
   enUS,
@@ -14,107 +15,97 @@ import {
   trTR,
   ukUA
 } from '@clerk/localizations';
-import { dark } from '@clerk/themes';
-import { expectTypeOf } from 'expect-type';
+import { dark } from '@clerk/ui/themes';
+import { cleanup, render } from '@solidjs/testing-library';
+import { createSignal, flush } from 'solid-js';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi
+} from 'vitest';
 
-import { describe, it } from 'vitest';
-import type { ClerkProvider } from '../clerk';
+import { IsomorphicClerk } from '../../isomorphic-clerk';
+import type {
+  ClerkProviderProps as GenericClerkProviderProps,
+  Ui
+} from '../../types';
+import { ClerkProvider } from '../clerk';
+
+vi.mock('../../isomorphic-clerk', () => {
+  let instance: any;
+  class IsomorphicClerk {
+    status = 'loading';
+    on = vi.fn();
+    off = vi.fn();
+    addListener = vi.fn(() => () => {});
+    __internal_updateProps = vi.fn().mockResolvedValue(undefined);
+    static getOrCreateInstance() {
+      instance ??= new IsomorphicClerk();
+      return instance;
+    }
+    static clearInstance() {
+      instance = undefined;
+    }
+  }
+  return { IsomorphicClerk };
+});
 
 type ClerkProviderProps = Parameters<typeof ClerkProvider>[0];
+type CustomAppearance = {
+  options?: {
+    customFlag?: boolean;
+  };
+};
+const customUi = {} as Ui<CustomAppearance>;
 
 describe('ClerkProvider', () => {
   describe('Type tests', () => {
     describe('publishableKey', () => {
-      it('expects a publishableKey and children as the minimum accepted case', () => {
+      it('accepts an explicit publishableKey', () => {
         expectTypeOf({
           publishableKey: 'test',
           children: ''
         }).toMatchTypeOf<ClerkProviderProps>();
       });
 
-      it('errors if no publishableKey', () => {
-        expectTypeOf({ children: '' }).not.toMatchTypeOf<ClerkProviderProps>();
+      it('accepts no explicit publishableKey', () => {
+        expectTypeOf({ children: '' }).toMatchTypeOf<ClerkProviderProps>();
       });
     });
   });
 
-  describe('Multi domain', () => {
+  describe('prefetchUI', () => {
     const defaultProps = { publishableKey: 'test', children: '' };
 
-    it('proxyUrl (primary app)', () => {
+    it('accepts false to disable UI prefetching', () => {
       expectTypeOf({
         ...defaultProps,
-        proxyUrl: 'test'
+        prefetchUI: false as const
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('proxyUrl + isSatellite (satellite app)', () => {
+    it('accepts undefined for default behavior', () => {
       expectTypeOf({
         ...defaultProps,
-        proxyUrl: 'test',
-        isSatellite: true
+        prefetchUI: undefined
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('domain + isSatellite (satellite app)', () => {
+    it('accepts true to explicitly enable UI prefetching', () => {
       expectTypeOf({
         ...defaultProps,
-        domain: 'test',
-        isSatellite: true
+        prefetchUI: true as const
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('only domain is not allowed', () => {
+    it('rejects non-boolean values', () => {
       expectTypeOf({
         ...defaultProps,
-        domain: 'test'
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-    });
-
-    it('only isSatellite is not allowed', () => {
-      expectTypeOf({
-        ...defaultProps,
-        isSatellite: true
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-    });
-
-    it('proxyUrl + domain is not allowed', () => {
-      expectTypeOf({
-        ...defaultProps,
-        proxyUrl: 'test',
-        domain: 'test'
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-    });
-
-    it('proxyUrl + domain + isSatellite is not allowed', () => {
-      expectTypeOf({
-        ...defaultProps,
-        proxyUrl: 'test',
-        domain: 'test',
-        isSatellite: true
-      }).not.toMatchTypeOf<ClerkProviderProps>();
-    });
-  });
-
-  describe('clerkJSVariant', () => {
-    const defaultProps = { publishableKey: 'test', children: '' };
-
-    it('is either headless or empty', () => {
-      expectTypeOf({
-        ...defaultProps,
-        clerkJSVariant: 'headless' as const
-      }).toMatchTypeOf<ClerkProviderProps>();
-      expectTypeOf({
-        ...defaultProps,
-        clerkJSVariant: '' as const
-      }).toMatchTypeOf<ClerkProviderProps>();
-      expectTypeOf({
-        ...defaultProps,
-        clerkJSVariant: undefined
-      }).toMatchTypeOf<ClerkProviderProps>();
-      expectTypeOf({
-        ...defaultProps,
-        clerkJSVariant: 'test'
+        prefetchUI: 'test'
       }).not.toMatchTypeOf<ClerkProviderProps>();
     });
   });
@@ -129,18 +120,41 @@ describe('ClerkProvider', () => {
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('includes variables, elements, layout baseTheme', () => {
+    it('includes variables, elements, options baseTheme', () => {
       expectTypeOf({
         ...defaultProps,
-        appearance: { elements: {}, variables: {}, layout: {}, baseTheme: dark }
+        appearance: { elements: {}, variables: {}, options: {}, thene: dark }
       }).toMatchTypeOf<ClerkProviderProps>();
     });
 
-    it('allows Clerk appearance options', () => {
+    it('errors if a non existent key is provided', () => {
       expectTypeOf({
         ...defaultProps,
-        appearance: { variables: { colorPrimary: '' }, layout: {} }
-      }).toMatchTypeOf<ClerkProviderProps>();
+        appearance: { variables: { nonExistentKey: '' } }
+      }).not.toMatchTypeOf<ClerkProviderProps>();
+
+      expectTypeOf({
+        ...defaultProps,
+        appearance: { options: { nonExistentKey: '' } }
+      }).not.toMatchTypeOf<ClerkProviderProps>();
+
+      // expectTypeOf({
+      //   ...defaultProps,
+      //   appearance: { elements: { nonExistentKey: '' } },
+      // }).not.toMatchTypeOf<ClerkProviderProps>();
+    });
+
+    it('is driven by the passed ui object type', () => {
+      expectTypeOf({
+        ...defaultProps,
+        ui: customUi,
+        appearance: { options: { customFlag: true } }
+      }).toMatchTypeOf<GenericClerkProviderProps<typeof customUi>>();
+
+      expectTypeOf({
+        ...defaultProps,
+        appearance: { options: { customFlag: true } }
+      }).not.toMatchTypeOf<ClerkProviderProps>();
     });
   });
 
@@ -167,6 +181,11 @@ describe('ClerkProvider', () => {
     });
 
     it('works with all our prebuilt localizations', () => {
+      expectTypeOf({
+        ...defaultProps,
+        localization: beBY
+      }).toMatchTypeOf<ClerkProviderProps>();
+
       expectTypeOf({
         ...defaultProps,
         localization: deDE
@@ -268,13 +287,95 @@ describe('ClerkProvider', () => {
         routerReplace: () => {}
       }).toMatchTypeOf<ClerkProviderProps>();
     });
+  });
 
-    it('errors if one of routerPush / routerReplace is passed', () => {
-      expectTypeOf({
-        publishableKey: 'test',
-        children: '',
-        routerPush: () => {}
-      }).not.toMatchTypeOf<ClerkProviderProps>();
+  describe('prop updates', () => {
+    const pk = 'pk_test_Y2xlcmsuY2xlcmsuZGV2JA';
+
+    it('pushes appearance and localization changes to Clerk, and nothing else', () => {
+      const [appearance, setAppearance] = createSignal<any>({});
+      const [localization, setLocalization] = createSignal<any>({});
+      const [signInUrl, setSignInUrl] = createSignal('/sign-in');
+      render(() => (
+        <ClerkProvider
+          publishableKey={pk}
+          appearance={appearance()}
+          localization={localization()}
+          signInUrl={signInUrl()}
+        >
+          <div />
+        </ClerkProvider>
+      ));
+      flush();
+      const clerk = IsomorphicClerk.getOrCreateInstance({} as any) as any;
+      const updateProps = clerk.__internal_updateProps as ReturnType<
+        typeof vi.fn
+      >;
+      updateProps.mockClear();
+
+      setSignInUrl('/other-sign-in');
+      flush();
+      expect(updateProps).not.toHaveBeenCalled();
+
+      const nextAppearance = { variables: { colorPrimary: 'red' } };
+      setAppearance(nextAppearance);
+      flush();
+      expect(updateProps).toHaveBeenCalledTimes(1);
+      expect(updateProps).toHaveBeenLastCalledWith({
+        appearance: nextAppearance
+      });
+
+      const nextLocalization = { signIn: { start: { title: 'Hi' } } };
+      setLocalization(nextLocalization);
+      flush();
+      expect(updateProps).toHaveBeenCalledTimes(2);
+      expect(updateProps.mock.calls[1][0].options).toMatchObject({
+        localization: nextLocalization,
+        signInUrl: '/other-sign-in'
+      });
+
+      cleanup();
+    });
+  });
+
+  describe('duplicate detection', () => {
+    const pk = 'pk_test_Y2xlcmsuY2xlcmsuZGV2JA';
+    const originalError = console.error;
+
+    beforeAll(() => {
+      console.error = vi.fn();
+    });
+
+    afterAll(() => {
+      console.error = originalError;
+    });
+
+    it('throws when a ClerkProvider is nested inside another ClerkProvider', () => {
+      expect(() =>
+        render(() => (
+          <ClerkProvider publishableKey={pk}>
+            <ClerkProvider publishableKey={pk}>
+              <div />
+            </ClerkProvider>
+          </ClerkProvider>
+        ))
+      ).toThrow(/multiple <ClerkProvider>/);
+    });
+
+    it('does not throw when a second render root mounts while the first is still mounted', () => {
+      const first = render(() => (
+        <ClerkProvider publishableKey={pk}>
+          <div />
+        </ClerkProvider>
+      ));
+      expect(() =>
+        render(() => (
+          <ClerkProvider publishableKey={pk}>
+            <div />
+          </ClerkProvider>
+        ))
+      ).not.toThrow();
+      first.unmount();
     });
   });
 });

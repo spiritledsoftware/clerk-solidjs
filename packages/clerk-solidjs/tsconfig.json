@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "@solidjs/web",
     "types": ["@types/node"]
   },
   "include": ["**/*.ts", "**/*.tsx"],

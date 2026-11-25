@@ -1,253 +1,416 @@
-import { ClerkAPIResponseError } from '@clerk/clerk-js';
-import { createWritableMemo } from '@solid-primitives/memo';
+import type { ClerkAPIResponseError } from '@clerk/shared/error';
+import type { ClerkPaginatedResponse } from '@clerk/shared/types';
 import {
-  createInfiniteQuery,
-  createQuery,
-  QueryClient
-} from '@tanstack/solid-query';
-import { Accessor, createMemo, createSignal } from 'solid-js';
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal
+} from 'solid-js';
 import type {
   CacheSetter,
   PagesOrInfiniteConfig,
   PagesOrInfiniteOptions,
-  PaginatedResources
+  PaginatedResources,
+  PaginatedResourcesWithDefault,
+  ValueOrSetter
 } from '../types';
+import {
+  hashQueryKey,
+  matchKeys,
+  type QueryKey,
+  withInfiniteKey
+} from './query/query-cache';
+import { useClerkQuery } from './query/use-clerk-query';
 
-function getDifferentKeys(
-  obj1: Record<string, unknown>,
-  obj2: Record<string, unknown>
-): Record<string, unknown> {
-  const keysSet = new Set(Object.keys(obj2));
-  const differentKeysObject: Record<string, unknown> = {};
-
-  for (const key1 of Object.keys(obj1)) {
-    if (!keysSet.has(key1)) {
-      differentKeysObject[key1] = obj1[key1];
-    }
-  }
-
-  return differentKeysObject;
-}
-
+/**
+ * Merges user pagination options with defaults. `true` means "use the defaults".
+ *
+ * @internal
+ */
 export const convertToSafeValues = <T extends PagesOrInfiniteOptions>(
   params: T | true | undefined,
   defaultValues: T
-) => {
+): T => {
   const shouldUseDefaults = typeof params === 'boolean' && params;
-
-  // Cache initialPage and initialPageSize until unmount
-  const initialPageRef = shouldUseDefaults
-    ? defaultValues.initialPage
-    : (params?.initialPage ?? defaultValues.initialPage);
-
-  const pageSizeRef = shouldUseDefaults
-    ? defaultValues.pageSize
-    : (params?.pageSize ?? defaultValues.pageSize);
-
-  const newObj: Record<string, unknown> = {};
+  const merged: Record<string, unknown> = {};
   for (const key of Object.keys(defaultValues)) {
-    newObj[key] = shouldUseDefaults
-      ? // @ts-ignore
-        defaultValues[key]
-      : // @ts-ignore
-        (params?.[key] ?? defaultValues[key]);
+    merged[key] = shouldUseDefaults
+      ? defaultValues[key as keyof T]
+      : ((params as T | undefined)?.[key as keyof T] ??
+        defaultValues[key as keyof T]);
   }
-
-  return {
-    ...newObj,
-    initialPage: initialPageRef,
-    pageSize: pageSizeRef
-  } as T;
+  return merged as T;
 };
+
+/**
+ * Pagination math, as in `@clerk/shared/react`.
+ *
+ * @internal
+ */
+export const calculateOffsetCount = (initialPage: number, pageSize: number) =>
+  (initialPage - 1) * pageSize;
+
+export const calculatePageCount = (
+  totalCount: number,
+  offsetCount: number,
+  pageSize: number
+) => Math.ceil((totalCount - offsetCount) / pageSize);
+
+export const calculateHasNextPage = (
+  totalCount: number,
+  offsetCount: number,
+  currentPage: number,
+  pageSize: number
+) => totalCount - offsetCount > currentPage * pageSize;
+
+export const calculateHasPreviousPage = (
+  currentPage: number,
+  pageSize: number,
+  offsetCount: number
+) => (currentPage - 1) * pageSize > offsetCount;
 
 type ArrayType<DataArray> =
   DataArray extends Array<infer ElementType> ? ElementType : never;
-type ExtractData<Type> = Type extends { data: infer Data }
+export type ExtractData<Type> = Type extends { data: infer Data }
   ? ArrayType<Data>
   : Type;
 
-type UsePagesOrInfinite = <
-  Params extends PagesOrInfiniteOptions,
+/**
+ * Cache identity of a paginated list. `tracked` identifies whose data it is (used by
+ * `revalidate()` and sign-out clearing); `args` are the request arguments.
+ *
+ * @internal
+ */
+export type PaginatedCacheKeys<Params> = {
+  stableKey: string;
+  authenticated: boolean;
+  tracked: Record<string, unknown>;
+  args: Params | undefined;
+};
+
+/**
+ * @internal
+ */
+export type UsePagesOrInfiniteParams<
+  Params,
+  FetcherReturnData,
+  TConfig extends PagesOrInfiniteConfig & PagesOrInfiniteOptions
+> = {
+  fetcher:
+    | ((p: Params) => FetcherReturnData | Promise<FetcherReturnData>)
+    | undefined;
+  config: TConfig;
+  keys: PaginatedCacheKeys<Params>;
+};
+
+const PAGES_STALE_TIME = 60_000;
+
+type Page = ClerkPaginatedResponse<any> | undefined;
+
+/**
+ * The paginated-list engine behind `useOrganization()`, `useOrganizationList()`,
+ * `useAPIKeys()`, and the billing hooks. A Solid port of `usePagesOrInfinite` from
+ * `@clerk/shared/react` without TanStack Query.
+ *
+ * - Paged mode caches each page under its own key (`args` + page + pageSize) for 60s;
+ *   `keepPreviousData` shows the previous page while the next one loads.
+ * - Infinite mode keeps one entry holding every loaded page. `fetchNext()` appends
+ *   the next page; `revalidate()` refetches all loaded pages.
+ * - Changing `keys.tracked` or `keys.args` switches to (and if needed fetches) that key.
+ * - `initialPage` and `pageSize` are read once, from the first options.
+ * - The cache is shared per Clerk instance, so `revalidate()` refetches every hook
+ *   showing the same list, and lists are dropped when `isSignedIn` turns `false`.
+ *
+ * See {@link useClerkQuery} for why state is written from promise callbacks rather
+ * than exposed as an async memo.
+ *
+ * @internal
+ */
+export function usePagesOrInfinite<
+  Params,
   FetcherReturnData extends Record<string, any>,
-  CacheKeys = Record<string, unknown>,
-  TConfig extends PagesOrInfiniteConfig = PagesOrInfiniteConfig
+  TConfig extends PagesOrInfiniteConfig & PagesOrInfiniteOptions =
+    PagesOrInfiniteConfig & PagesOrInfiniteOptions
 >(
-  options: Accessor<{
-    /**
-     * The parameters will be passed to the fetcher
-     */
-    params: Params;
-    /**
-     * A Promise returning function to fetch your data
-     */
-    fetcher:
-      | ((p: Params) => FetcherReturnData | Promise<FetcherReturnData>)
-      | undefined;
-    /**
-     * Internal configuration of the hook
-     */
-    config: TConfig;
-    cacheKeys: CacheKeys;
-  }>
-) => PaginatedResources<ExtractData<FetcherReturnData>>;
+  options: Accessor<
+    UsePagesOrInfiniteParams<Params, FetcherReturnData, TConfig>
+  >
+): PaginatedResources<
+  ExtractData<FetcherReturnData>,
+  TConfig['infinite'] extends true ? true : false
+> {
+  // `initialPage` and `pageSize` keep their first values for the hook's lifetime.
+  let sizing: { initialPage: number; pageSize: number } | undefined;
+  const fixed = createMemo(() => {
+    const config = options().config;
+    sizing ??= {
+      initialPage: config.initialPage ?? 1,
+      pageSize: config.pageSize ?? 10
+    };
+    return sizing;
+  });
+  const initialPage = () => fixed().initialPage;
+  const pageSize = () => fixed().pageSize;
+  // For request callbacks, which run outside tracking scopes; `fixed` has run by then.
+  const sized = () => sizing ?? fixed();
 
-export const usePagesOrInfinite: UsePagesOrInfinite = (options) => {
-  const [paginatedPage, setPaginatedPage] = createWritableMemo(
-    () => options().params.initialPage ?? 1
-  );
+  const [pageOverride, setPageOverride] = createSignal<number | undefined>();
+  const paginatedPage = () => pageOverride() ?? initialPage();
 
-  // Cache initialPage and initialPageSize until unmount
-  const initialPage = createMemo(() => options().params.initialPage ?? 1);
-  const pageSize = createMemo(() => options().params.pageSize ?? 10);
+  const infinite = createMemo(() => options().config.infinite ?? false);
+  const queriesEnabled = createMemo(() => {
+    const { fetcher, config } = options();
+    return (
+      (config.enabled ?? true) &&
+      !!fetcher &&
+      config.__experimental_mode !== 'cache' &&
+      config.isSignedIn !== false
+    );
+  });
 
-  const enabled = createMemo(() => options().config.enabled ?? true);
-  const triggerInfinite = createMemo(() => options().config.infinite ?? false);
+  const fetchWith = (
+    fetcher: UsePagesOrInfiniteParams<
+      Params,
+      FetcherReturnData,
+      TConfig
+    >['fetcher'],
+    args: Params | undefined,
+    page: number
+  ) =>
+    fetcher!({
+      ...(args as object),
+      initialPage: page,
+      pageSize: sized().pageSize
+    } as Params) as unknown as Promise<Page>;
 
-  const [queryClient] = createSignal(new QueryClient());
-
-  const pagesCacheKey = createMemo(() => ({
-    ...options().cacheKeys,
-    ...options().params,
-    initialPage: paginatedPage(),
-    pageSize: pageSize()
-  }));
-  const query = createQuery(
-    () => ({
-      queryKey: [pagesCacheKey()],
-      queryFn: ({ queryKey: [cacheKeyParams] }) => {
-        // @ts-ignore
-        const requestParams = getDifferentKeys(cacheKeyParams, cacheKeys);
-        // @ts-ignore
-        return fetcher?.(requestParams);
+  // Paged mode: one cache entry per page.
+  const pagesQuery = useClerkQuery<Page>(() => {
+    const { fetcher, config, keys } = options();
+    const page = paginatedPage();
+    const args = keys.args;
+    return {
+      key: {
+        stableKey: keys.stableKey,
+        authenticated: keys.authenticated,
+        tracked: keys.tracked,
+        args: { ...(args as object), initialPage: page, pageSize: pageSize() }
       },
-      enabled: !triggerInfinite() && !!options().fetcher && enabled
-    }),
-    queryClient
-  );
+      fn: fetcher ? () => fetchWith(fetcher, args, page) : undefined,
+      enabled: queriesEnabled() && !infinite(),
+      keepPreviousData: config.keepPreviousData ?? false,
+      staleTime: PAGES_STALE_TIME
+    };
+  });
 
-  const infiniteQueryKey = createMemo(() => ({
-    ...options().cacheKeys,
-    ...options().params,
-    pageSize: pageSize()
-  }));
-  const infiniteQuery = createInfiniteQuery(
-    () => ({
-      queryKey: [infiniteQueryKey()],
-      queryFn: ({ pageParam, queryKey: [cacheKeyParams] }) => {
-        const requestParams = getDifferentKeys(
-          {
-            initialPage: initialPage() + pageParam,
-            ...cacheKeyParams
-          },
-          // @ts-ignore
-          cacheKeys
-        );
-        // @ts-ignore
-        return fetcher?.(requestParams);
-      },
-      initialPageParam: initialPage(),
-      getNextPageParam: (lastPage) => {
-        if (lastPage && !lastPage.length) {
-          return null;
+  // Infinite mode: one cache entry holding every loaded page.
+  const nextPageParam = (pages: Page[]) => {
+    const { initialPage: first, pageSize: size } = sized();
+    const total = pages[pages.length - 1]?.total_count ?? 0;
+    const consumed = (pages.length + first - 1) * size;
+    return consumed < total ? first + pages.length : undefined;
+  };
+
+  const infiniteKey = createMemo((): QueryKey => {
+    const { keys } = options();
+    return {
+      stableKey: `${keys.stableKey}-inf`,
+      authenticated: keys.authenticated,
+      tracked: keys.tracked,
+      args: keys.args
+    };
+  });
+
+  const infiniteQuery = useClerkQuery<Page[]>(() => {
+    const { fetcher, keys } = options();
+    const args = keys.args;
+    return {
+      key: infiniteKey(),
+      // (Re)fetch as many pages as are loaded, at least the first, in order.
+      fn: fetcher
+        ? async (previous) => {
+            const target = Math.max(previous?.length ?? 0, 1);
+            const pages: Page[] = [];
+            let next: number | undefined = sized().initialPage;
+            while (next !== undefined && pages.length < target) {
+              pages.push(await fetchWith(fetcher, args, next));
+              next = nextPageParam(pages);
+            }
+            return pages;
+          }
+        : undefined,
+      enabled: queriesEnabled() && infinite(),
+      staleTime: PAGES_STALE_TIME
+    };
+  });
+
+  // Clear the cached lists when the user signs out.
+  const signedOut = createMemo(() => options().config.isSignedIn === false);
+  createEffect(
+    () => signedOut(),
+    (isSignedOut, wasSignedOut) => {
+      if (isSignedOut && wasSignedOut === false) {
+        const { keys } = options();
+        if (keys.authenticated) {
+          pagesQuery.cache.remove(
+            matchKeys(withInfiniteKey(keys.stableKey), undefined, true)
+          );
         }
-      },
-      enabled: triggerInfinite() && enabled
-    }),
-    queryClient
+        setPageOverride(undefined);
+      }
+    }
   );
+
+  const infinitePages = createMemo(
+    () => (infiniteQuery.data() ?? []).filter(Boolean) as NonNullable<Page>[]
+  );
+
+  const data = createMemo(() => {
+    if (infinite()) {
+      return infinitePages().flatMap((p) => p.data ?? []);
+    }
+    const pageData = pagesQuery.data();
+    return Array.isArray(pageData?.data) ? pageData.data : [];
+  });
+
+  const count = createMemo(() => {
+    if (infinite()) {
+      return infinitePages().at(-1)?.total_count ?? 0;
+    }
+    const total = pagesQuery.data()?.total_count;
+    return typeof total === 'number' ? total : 0;
+  });
 
   const page = createMemo(() => {
-    if (triggerInfinite()) {
-      return infiniteQuery.data?.pages.length ?? 0;
+    if (infinite()) {
+      const loaded = infinitePages().length;
+      return loaded > 0 ? loaded : initialPage();
     }
     return paginatedPage();
   });
 
-  const data = createMemo(() => {
-    if (triggerInfinite()) {
-      return infiniteQuery.data?.pages.flat() ?? [];
-    }
-    return query.data?.data ?? [];
-  });
+  const active = () => (infinite() ? infiniteQuery : pagesQuery);
 
-  const count = createMemo(() => {
-    if (triggerInfinite()) {
-      return (
-        infiniteQuery.data?.pages?.[infiniteQuery.data?.pages.length - 1]
-          ?.total_count || 0
+  const error = () =>
+    (active().error() as ClerkAPIResponseError | null | undefined) ?? null;
+
+  const offsetCount = () => calculateOffsetCount(initialPage(), pageSize());
+
+  const fetchNextInfinite = () => {
+    const { fetcher, keys } = options();
+    const key = infiniteKey();
+    // Read the cache directly: accessors lag writes until the next flush.
+    const entry = infiniteQuery.cache.peek<Page[]>(hashQueryKey(key));
+    const pages = entry?.data;
+    if (!fetcher || !queriesEnabled() || !pages?.length || entry?.fetching) {
+      return;
+    }
+    const next = nextPageParam(pages);
+    if (next === undefined) return;
+    void infiniteQuery.cache.fetch<Page[]>(
+      key,
+      async (previous) => [
+        ...(previous ?? []),
+        await fetchWith(fetcher, keys.args, next)
+      ],
+      { force: true }
+    );
+  };
+
+  const fetchPage: ValueOrSetter<number> = (numberOrFn) => {
+    if (infinite()) {
+      const target = Math.max(
+        0,
+        typeof numberOrFn === 'function' ? numberOrFn(page()) : numberOrFn
       );
-    }
-    return query.data?.total_count ?? 0;
-  });
-
-  const isLoading = createMemo(() =>
-    triggerInfinite() ? infiniteQuery.isLoading : query.isLoading
-  );
-  const isFetching = createMemo(() =>
-    triggerInfinite() ? infiniteQuery.isFetching : query.isFetching
-  );
-  const error = createMemo(
-    () =>
-      (triggerInfinite()
-        ? infiniteQuery.error
-        : query.error) as ClerkAPIResponseError | null
-  );
-  const isError = createMemo(() => !!error());
-  /**
-   * Helpers
-   */
-  const fetchNext = () => {
-    if (triggerInfinite()) {
-      void infiniteQuery.fetchNextPage();
+      if (target > infinitePages().length) {
+        fetchNextInfinite();
+      }
       return;
     }
-    return setPaginatedPage((n) => n + 1);
+    setPageOverride((current) => {
+      const value = current ?? initialPage();
+      return typeof numberOrFn === 'function' ? numberOrFn(value) : numberOrFn;
+    });
   };
 
-  const fetchPrevious = () => {
-    if (triggerInfinite()) {
-      void infiniteQuery.fetchPreviousPage();
-      return;
+  const setData: CacheSetter = (value) => {
+    if (infinite()) {
+      return infiniteQuery.cache.setData<Page[]>(infiniteKey(), value as any);
     }
-    return setPaginatedPage((n) => n - 1);
+    return pagesQuery.cache.setData<Page>(
+      pagesQuery.request().key,
+      value as any
+    );
   };
 
-  const offsetCount = createMemo(() => (initialPage() - 1) * pageSize());
-
-  const pageCount = createMemo(() =>
-    Math.ceil((count() - offsetCount()) / pageSize())
-  );
-  const hasNextPage = createMemo(
-    () => count() - offsetCount() * pageSize() > page() * pageSize()
-  );
-  const hasPreviousPage = createMemo(
-    () => (page() - 1) * pageSize() > offsetCount() * pageSize()
-  );
-
-  const setData: CacheSetter = triggerInfinite()
-    ? async (value) => queryClient().setQueryData([infiniteQueryKey], value)
-    : async (value) => queryClient().setQueryData([pagesCacheKey()], value);
-
-  const revalidate = triggerInfinite()
-    ? () => infiniteQuery.refetch()
-    : () => query.refetch();
+  const revalidate = async () => {
+    const { keys } = options();
+    await pagesQuery.cache.invalidate(
+      matchKeys(
+        withInfiniteKey(keys.stableKey),
+        keys.tracked,
+        keys.authenticated
+      )
+    );
+  };
 
   return {
     data,
     count,
     error,
-    isLoading,
-    isFetching,
-    isError,
+    isLoading: () => active().isLoading(),
+    isFetching: () => active().isFetching(),
+    isError: () => !!error(),
     page,
-    pageCount,
-    fetchNext,
-    fetchPrevious,
-    hasNextPage,
-    hasPreviousPage,
-    // Let the hook return type define this type
-    setData: setData as any,
-    // Let the hook return type define this type
-    revalidate: revalidate as any
+    pageCount: () => calculatePageCount(count(), offsetCount(), pageSize()),
+    fetchPage,
+    fetchNext: () => {
+      if (infinite()) {
+        fetchNextInfinite();
+        return;
+      }
+      fetchPage((n) => Math.max(0, n + 1));
+    },
+    fetchPrevious: () => {
+      // Forward-only in infinite mode, as upstream.
+      if (infinite()) return;
+      fetchPage((n) => Math.max(0, n - 1));
+    },
+    hasNextPage: () =>
+      infinite()
+        ? (() => {
+            const pages = infiniteQuery.data();
+            return !!pages?.length && nextPageParam(pages) !== undefined;
+          })()
+        : calculateHasNextPage(count(), offsetCount(), page(), pageSize()),
+    hasPreviousPage: () =>
+      infinite()
+        ? false
+        : calculateHasPreviousPage(page(), pageSize(), offsetCount()),
+    revalidate,
+    setData: setData as any
   };
+}
+
+/**
+ * The value of a paginated list before Clerk has loaded.
+ *
+ * @internal
+ */
+export const undefinedPaginatedResource: PaginatedResourcesWithDefault = {
+  data: () => undefined,
+  count: () => undefined,
+  error: () => undefined,
+  isLoading: () => false,
+  isFetching: () => false,
+  isError: () => false,
+  page: () => undefined,
+  pageCount: () => undefined,
+  fetchPage: undefined,
+  fetchNext: undefined,
+  fetchPrevious: undefined,
+  hasNextPage: () => false,
+  hasPreviousPage: () => false,
+  revalidate: undefined,
+  setData: undefined
 };

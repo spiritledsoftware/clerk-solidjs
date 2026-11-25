@@ -19,179 +19,70 @@
   "license": "MIT",
   "author": "Spirit-Led Software",
   "type": "module",
-  "main": "./dist/index/server.cjs",
-  "module": "./dist/index/server.js",
-  "types": "./dist/index/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "errors": [
-        "./dist/errors/index.d.ts"
-      ],
-      "server": [
-        "./dist/server/index.d.ts"
-      ],
-      "start": [
-        "./dist/start/index.d.ts"
-      ],
-      "start/server": [
-        "./dist/start/server/index.d.ts"
-      ]
-    }
-  },
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "worker": {
-        "solid": "./dist/index/server.jsx",
-        "import": {
-          "types": "./dist/index/index.d.ts",
-          "default": "./dist/index/server.js"
-        },
-        "require": {
-          "types": "./dist/index/index.d.cts",
-          "default": "./dist/index/server.cjs"
-        }
-      },
-      "browser": {
-        "solid": "./dist/index/index.jsx",
-        "import": {
-          "types": "./dist/index/index.d.ts",
-          "default": "./dist/index/index.js"
-        },
-        "require": {
-          "types": "./dist/index/index.d.cts",
-          "default": "./dist/index/index.cjs"
-        }
-      },
-      "deno": {
-        "solid": "./dist/index/server.jsx",
-        "import": {
-          "types": "./dist/index/index.d.ts",
-          "default": "./dist/index/server.js"
-        },
-        "require": {
-          "types": "./dist/index/index.d.cts",
-          "default": "./dist/index/server.cjs"
-        }
-      },
-      "node": {
-        "solid": "./dist/index/server.jsx",
-        "import": {
-          "types": "./dist/index/index.d.ts",
-          "default": "./dist/index/server.js"
-        },
-        "require": {
-          "types": "./dist/index/index.d.cts",
-          "default": "./dist/index/server.cjs"
-        }
-      },
+      "types": "./dist/types/index.d.ts",
       "solid": "./dist/index/index.jsx",
-      "import": {
-        "types": "./dist/index/index.d.ts",
-        "default": "./dist/index/index.js"
-      },
-      "require": {
-        "types": "./dist/index/index.d.cts",
-        "default": "./dist/index/index.cjs"
-      }
+      "worker": "./dist/index/server.js",
+      "deno": "./dist/index/server.js",
+      "node": "./dist/index/server.js",
+      "browser": "./dist/index/index.js",
+      "default": "./dist/index/index.js"
+    },
+    "./experimental": {
+      "types": "./dist/types/experimental.d.ts",
+      "solid": "./dist/experimental/index.jsx",
+      "worker": "./dist/experimental/server.js",
+      "deno": "./dist/experimental/server.js",
+      "node": "./dist/experimental/server.js",
+      "browser": "./dist/experimental/index.js",
+      "default": "./dist/experimental/index.js"
+    },
+    "./legacy": {
+      "types": "./dist/types/legacy.d.ts",
+      "solid": "./dist/legacy/index.jsx",
+      "worker": "./dist/legacy/server.js",
+      "deno": "./dist/legacy/server.js",
+      "node": "./dist/legacy/server.js",
+      "browser": "./dist/legacy/index.js",
+      "default": "./dist/legacy/index.js"
     },
     "./errors": {
-      "import": {
-        "types": "./dist/errors/index.d.ts",
-        "default": "./dist/errors/index.js"
-      },
-      "require": {
-        "types": "./dist/errors/index.d.cts",
-        "default": "./dist/errors/index.cjs"
-      }
+      "types": "./dist/types/errors.d.ts",
+      "default": "./dist/errors/index.js"
     },
-    "./server": {
-      "import": {
-        "types": "./dist/server/index.d.ts",
-        "default": "./dist/server/index.js"
-      },
-      "require": {
-        "types": "./dist/server/index.d.cts",
-        "default": "./dist/server/index.cjs"
-      }
+    "./internal": {
+      "types": "./dist/types/internal.d.ts",
+      "solid": "./dist/internal/index.jsx",
+      "worker": "./dist/internal/server.js",
+      "deno": "./dist/internal/server.js",
+      "node": "./dist/internal/server.js",
+      "browser": "./dist/internal/index.js",
+      "default": "./dist/internal/index.js"
     },
     "./start": {
-      "worker": {
-        "solid": "./dist/start/server.jsx",
-        "import": {
-          "types": "./dist/start/index.d.ts",
-          "default": "./dist/start/server.js"
-        },
-        "require": {
-          "types": "./dist/start/index.d.cts",
-          "default": "./dist/start/server.cjs"
-        }
-      },
-      "browser": {
-        "solid": "./dist/start/index.jsx",
-        "import": {
-          "types": "./dist/start/index.d.ts",
-          "default": "./dist/start/index.js"
-        },
-        "require": {
-          "types": "./dist/start/index.d.cts",
-          "default": "./dist/start/index.cjs"
-        }
-      },
-      "deno": {
-        "solid": "./dist/start/server.jsx",
-        "import": {
-          "types": "./dist/start/index.d.ts",
-          "default": "./dist/start/server.js"
-        },
-        "require": {
-          "types": "./dist/start/index.d.cts",
-          "default": "./dist/start/server.cjs"
-        }
-      },
-      "node": {
-        "solid": "./dist/start/server.jsx",
-        "import": {
-          "types": "./dist/start/index.d.ts",
-          "default": "./dist/start/server.js"
-        },
-        "require": {
-          "types": "./dist/start/index.d.cts",
-          "default": "./dist/start/server.cjs"
-        }
-      },
+      "types": "./dist/types/start/index.d.ts",
       "solid": "./dist/start/index.jsx",
-      "import": {
-        "types": "./dist/start/index.d.ts",
-        "default": "./dist/start/index.js"
-      },
-      "require": {
-        "types": "./dist/start/index.d.cts",
-        "default": "./dist/start/index.cjs"
-      }
+      "worker": "./dist/start/server.js",
+      "deno": "./dist/start/server.js",
+      "node": "./dist/start/server.js",
+      "browser": "./dist/start/index.js",
+      "default": "./dist/start/index.js"
     },
     "./start/server": {
-      "import": {
-        "types": "./dist/start/server/index.d.ts",
-        "default": "./dist/start/server/index.js"
-      },
-      "require": {
-        "types": "./dist/start/server/index.d.cts",
-        "default": "./dist/start/server/index.cjs"
-      }
-    }
+      "types": "./dist/types/start/server/index.d.ts",
+      "default": "./dist/start/server/index.js"
+    },
+    "./package.json": "./package.json"
   },
-  "browser": {
-    "./dist/index/server.js": "./dist/index/index.js",
-    "./dist/index/server.cjs": "./dist/index/index.cjs",
-    "./dist/start/server.js": "./dist/start/index.js",
-    "./dist/start/server.cjs": "./dist/start/index.cjs"
-  },
+  "sideEffects": false,
   "files": [
     "./dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch .",
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "dev": "tsup --watch",
     "dev:publish": "pnpm run dev -- --env.publish",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
@@ -204,22 +95,24 @@
     "publish:local": "pnpm dlx yalc push --replace  --sig"
   },
   "dependencies": {
-    "@clerk/backend": "^3.4.4",
-    "@clerk/shared": "^4.9.0",
-    "@solid-primitives/context": "^0.3.2",
-    "@solid-primitives/destructure": "^0.2.3",
-    "@solid-primitives/memo": "^1.4.5",
-    "@tanstack/solid-query": "^5.100.8"
+    "@clerk/backend": "^3.33.0",
+    "@clerk/shared": "^4.49.0"
   },
   "devDependencies": {
-    "@clerk/clerk-js": "^6.8.0",
-    "@clerk/localizations": "^4.5.8",
-    "@clerk/themes": "^2.4.57",
-    "@clerk/types": "^4.101.20",
+    "@babel/core": "^7.29.0",
+    "@babel/preset-typescript": "^7.28.5",
+    "@clerk/clerk-js": "^6.47.0",
+    "@clerk/localizations": "^4.27.0",
+    "@clerk/ui": "^1.45.0",
     "@eslint/js": "^10.0.1",
-    "@solidjs/testing-library": "^0.8.10",
+    "@solidjs/babel-plugin": "^2.0.3",
+    "@solidjs/router": "^2.0.1",
+    "@solidjs/testing-library": "1.0.0-rc.2",
+    "@solidjs/vite-plugin": "^3.0.1",
+    "@solidjs/web": "^2.0.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/user-event": "^14.6.1",
+    "@types/babel__core": "^7.20.5",
     "@types/node": "^25.6.0",
     "eslint": "^10.3.0",
     "expect-type": "^1.3.0",
@@ -228,21 +121,25 @@
     "prettier": "3.8.3",
     "prettier-plugin-organize-imports": "^4.3.0",
     "rimraf": "^6.1.3",
+    "solid-js": "^2.0.4",
     "tsup": "^8.5.1",
-    "tsup-preset-solid": "^2.2.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.1",
-    "vite-plugin-solid": "^2.11.12",
-    "vite-tsconfig-paths": "^6.1.1",
+    "vite": "^8.0.10",
     "vitest": "^4.1.5"
   },
   "peerDependencies": {
-    "@solidjs/router": ">=0.14",
-    "@solidjs/start": ">=1",
-    "solid-js": ">=1"
+    "@solidjs/router": "^2.0.0",
+    "@solidjs/web": "^2.0.0",
+    "solid-js": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@solidjs/router": {
+      "optional": true
+    }
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "publishConfig": {
     "access": "public",
